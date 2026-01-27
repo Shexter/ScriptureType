@@ -1,0 +1,20 @@
+nav > .textButton:nth-child(1) {
+  color: #e4002b;
+}
+
+nav > .textButton:nth-child(2) {
+  color: #c53562;
+}
+
+nav > .textButton:nth-child(3) {
+  color: #95549e;
+}
+
+nav > .textButton:nth-child(4) {
+  color: #6744a1;
+}
+
+nav > .textButton:nth-child(5),
+nav > .textButton:nth-child(6) {
+  color: #393c73;
+}

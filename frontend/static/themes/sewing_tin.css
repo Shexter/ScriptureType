@@ -1,0 +1,7 @@
+nav > .textButton {
+  color: #f2ce83;
+}
+
+nav > .textButton:hover {
+  color: #c6915e;
+}
