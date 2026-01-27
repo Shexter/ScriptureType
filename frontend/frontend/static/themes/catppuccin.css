@@ -1,0 +1,27 @@
+nav .view-start {
+  color: #f38ba8;
+}
+
+nav .view-leaderboards {
+  color: #fab387;
+}
+
+nav .view-about {
+  color: #f9e2af;
+}
+
+nav .view-settings {
+  color: #a6e3a1;
+}
+
+nav .view-account {
+  color: #89dceb;
+}
+
+nav .showAlerts {
+  color: #89b4fa;
+}
+
+nav .signInOut {
+  color: #b4befe;
+}
