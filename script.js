@@ -4,7 +4,7 @@ const wpmEl = document.getElementById('wpm');
 const accuracyEl = document.getElementById('accuracy');
 const textDisplay = document.getElementById('text-display');
 const timerDuration = document.getElementById('timer-duration');
-const wordsCount = document.getElementById('words-count');
+const versesCount = document.getElementById('verses-count');
 const verseReferenceEl = document.getElementById('verse-reference');
 
 const bibleBooks = {
@@ -66,13 +66,13 @@ const bibleBooks = {
     "Hail Mary": [
         { text: "Hail Mary full of grace the Lord is with you", reference: "Luke 1:28", context: "The Angel Gabriel greeting Mary with the Greek title 'Kecharitomene' (full of grace), indicating her unique state of divine favor and sinlessness as the chosen Mother of God." },
         { text: "Blessed are you among women and blessed is the fruit of your womb Jesus", reference: "Luke 1:42", context: "Elizabeth's inspired greeting to Mary, filled with the Holy Spirit, recognizing Mary's unique blessedness and the divine nature of her Child Jesus." },
-        { text: "Holy Mary Mother of God pray for us sinners", reference: "Traditional", context: "The petitionary part of the Hail Mary, asking for Mary's intercession as Mother of God (Theotokos), a title defined at the Council of Ephesus (431 AD)." },
-        { text: "Now and at the hour of our death Amen", reference: "Traditional", context: "Request for Mary's maternal intercession throughout life and especially at the moment of death, reflecting the Catholic belief in the communion of saints." }
+        { text: "Holy Mary Mother of God pray for us sinners", reference: "Luke 1:43", context: "The petitionary part of the Hail Mary, asking for Mary's intercession as Mother of God (Theotokos), a title defined at the Council of Ephesus (431 AD)." },
+        { text: "Now and at the hour of our death Amen", reference: "Traditional", context: "Request for Mary's maternal intercession throughout life and especially at the moment of death, reflecting the Catholic belief in the communion of saints and the prayer of a righteous person is powerful and effective." }
     ],
     "Glory Be": [
-        { text: "Glory be to the Father and to the Son and to the Holy Spirit", reference: "Traditional", context: "The Doxology - ancient Trinitarian praise formula dating from the early Church, expressing worship of the three Persons of the Holy Trinity as co-equal and co-eternal." },
-        { text: "As it was in the beginning is now and ever shall be", reference: "Traditional", context: "Affirmation of God's unchanging nature and eternal kingdom, reflecting the timeless nature of divine worship throughout salvation history." },
-        { text: "World without end Amen", reference: "Traditional", context: "Declaration of God's eternal reign and the everlasting nature of His kingdom, concluding the Trinitarian doxology with assent of faith." }
+        { text: "Glory be to the Father and to the Son and to the Holy Spirit", reference: "Trinitarian Doxology", context: "The Doxology - ancient Trinitarian praise formula dating from the early Church, expressing worship of the three Persons of the Holy Trinity as co-equal and co-eternal." },
+        { text: "As it was in the beginning is now and ever shall be", reference: "Trinitarian Doxology", context: "Affirmation of God's unchanging nature and eternal kingdom, reflecting the timeless nature of divine worship throughout salvation history." },
+        { text: "World without end Amen", reference: "Trinitarian Doxology", context: "Declaration of God's eternal reign and the everlasting nature of His kingdom, concluding the Trinitarian doxology with assent of faith." }
     ],
     "Psalm 23": [
         { text: "The Lord is my shepherd I shall not want", reference: "Psalm 23:1", context: "David's declaration of complete trust in God's provision and care as his shepherd." },
@@ -184,7 +184,7 @@ const bibleBooks = {
 
 // Game state
 let gameState = {
-    mode: 'timer', // 'timer', 'words'
+    mode: 'timer', // 'timer', 'verses'
     words: [],
     letters: [],
     currentWordIndex: 0,
@@ -196,14 +196,22 @@ let gameState = {
     caretTimer: null,
     isTestActive: false,
     timeLimit: 60,
-    wordLimit: 50,
+    verseLimit: 5,
     timeRemaining: 60,
     currentVerse: null,
     currentVerseIndex: 0,
     verses: [],
     selectedBook: null,
-    selectedBookName: null
+    selectedBookName: null,
+    wordToVerseMap: [] // Maps word index to verse index
 };
+
+// Key combo state for Esc+Tab
+let keysPressed = {
+    Escape: false,
+    Tab: false
+};
+let comboTimeout = null;
 
 function selectRandomBook() {
     const books = Object.keys(bibleBooks);
@@ -212,12 +220,13 @@ function selectRandomBook() {
     gameState.selectedBookName = books[randomIndex];
 }
 
-function generateConsecutiveVerses(count = 50) {
+function generateConsecutiveVerses(verseCount) {
     const verses = gameState.selectedBook;
-    const startIndex = Math.floor(Math.random() * (verses.length - count / 3)); // Start point, assuming 3 words per verse average
+    const maxStartIndex = Math.max(0, verses.length - verseCount);
+    const startIndex = Math.floor(Math.random() * (maxStartIndex + 1));
     const selectedVerses = [];
     
-    for (let i = 0; i < Math.min(count / 3, verses.length - startIndex); i++) {
+    for (let i = 0; i < verseCount && (startIndex + i) < verses.length; i++) {
         selectedVerses.push(verses[startIndex + i]);
     }
     
@@ -228,42 +237,107 @@ function verseToWords(verse) {
     return verse.split(/\s+/);
 }
 
-function generateRandomWords(count = 50) {
+function generateRandomVerses(verseCount) {
     // Select a random book if not already selected
     if (!gameState.selectedBook) {
         selectRandomBook();
     }
     
-    const selectedVerses = generateConsecutiveVerses(Math.ceil(count / 8)); // Average verse has ~8 words
+    const selectedVerses = generateConsecutiveVerses(verseCount);
     gameState.verses = selectedVerses;
     gameState.currentVerseIndex = 0;
     gameState.currentVerse = selectedVerses[0];
     
     const allWords = [];
-    selectedVerses.forEach(verse => {
+    gameState.wordToVerseMap = []; // Reset mapping
+    
+    selectedVerses.forEach((verse, verseIndex) => {
         const words = verseToWords(verse.text);
+        words.forEach(() => {
+            gameState.wordToVerseMap.push(verseIndex);
+        });
         allWords.push(...words);
     });
     
-    return allWords.slice(0, count);
+    return allWords;
 }
 
-function renderWords(wordList) {
+// Keep generateRandomWords for timer mode (generates many words)
+function generateRandomWords(count = 100) {
+    // Select a random book if not already selected
+    if (!gameState.selectedBook) {
+        selectRandomBook();
+    }
+    
+    // For timer mode, generate enough verses to get approximately the word count
+    const estimatedVersesNeeded = Math.ceil(count / 8); // Average verse has ~8 words
+    const selectedVerses = generateConsecutiveVerses(estimatedVersesNeeded);
+    gameState.verses = selectedVerses;
+    gameState.currentVerseIndex = 0;
+    gameState.currentVerse = selectedVerses[0];
+    
+    const allWords = [];
+    gameState.wordToVerseMap = []; // Reset mapping
+    
+    selectedVerses.forEach((verse, verseIndex) => {
+        const words = verseToWords(verse.text);
+        words.forEach(() => {
+            gameState.wordToVerseMap.push(verseIndex);
+        });
+        allWords.push(...words);
+    });
+    
+    return allWords;
+}
+
+function renderWords(wordList, snapshotData = null) {
     const wordsContainer = document.querySelector('.words');
     wordsContainer.innerHTML = '';
     
-    wordList.forEach(word => {
+    wordList.forEach((word, wordIndex) => {
         const wordDiv = document.createElement('div');
         wordDiv.className = 'word';
+        wordDiv.dataset.wordIndex = wordIndex;
         
-        word.split('').forEach(letter => {
+        // Get verse info for this word
+        const verseIndex = gameState.wordToVerseMap[wordIndex];
+        if (verseIndex !== undefined && gameState.verses[verseIndex]) {
+            const verse = gameState.verses[verseIndex];
+            wordDiv.dataset.verseId = `verse-${verseIndex}`;
+            wordDiv.dataset.verseRef = verse.reference;
+            wordDiv.dataset.verseContext = verse.context;
+        }
+        
+        // Restore letter states from snapshot if available
+        const wordSnapshot = snapshotData?.phrases?.find(p => p.wordIndex === wordIndex);
+        
+        word.split('').forEach((letter, letterIndex) => {
             const letterSpan = document.createElement('letter');
             letterSpan.textContent = letter;
+            
+            // Restore correctness state from snapshot
+            if (wordSnapshot && wordSnapshot.letters && wordSnapshot.letters[letterIndex]) {
+                const letterState = wordSnapshot.letters[letterIndex];
+                if (letterState === 'correct') {
+                    letterSpan.classList.add('correct');
+                } else if (letterState === 'incorrect') {
+                    letterSpan.classList.add('incorrect');
+                }
+            }
+            
             wordDiv.appendChild(letterSpan);
         });
         
         wordsContainer.appendChild(wordDiv);
     });
+    
+    // Group words by verse for hover tooltips (only if not in active typing mode)
+    if (!gameState.isTestActive || snapshotData) {
+        // Use setTimeout to ensure DOM is ready
+        setTimeout(() => {
+            groupWordsByVerse();
+        }, 0);
+    }
 }
 
 function updateVerseReference() {
@@ -322,12 +396,12 @@ function initializeTest() {
     
     // Show the appropriate config based on mode
     document.getElementById('timer-config').style.display = gameState.mode === 'timer' ? 'block' : 'none';
-    document.getElementById('words-config').style.display = gameState.mode === 'words' ? 'block' : 'none';
+    document.getElementById('verses-config').style.display = gameState.mode === 'verses' ? 'block' : 'none';
     
     // Generate words based on mode
     let wordList = [];
-    if (gameState.mode === 'words') {
-        wordList = generateRandomWords(gameState.wordLimit);
+    if (gameState.mode === 'verses') {
+        wordList = generateRandomVerses(gameState.verseLimit);
     } else if (gameState.mode === 'timer') {
         wordList = generateRandomWords(100); // Generate more words for timer mode
     }
@@ -370,10 +444,14 @@ function addMoreWords() {
     // Add new verses to game state
     gameState.verses.push(...newVerses);
     
-    // Convert verses to words
+    // Convert verses to words and update word-to-verse mapping
     const newWords = [];
-    newVerses.forEach(verse => {
+    const startVerseIndex = gameState.verses.length - newVerses.length;
+    newVerses.forEach((verse, verseOffset) => {
         const words = verseToWords(verse.text);
+        words.forEach(() => {
+            gameState.wordToVerseMap.push(startVerseIndex + verseOffset);
+        });
         newWords.push(...words);
     });
     
@@ -499,11 +577,289 @@ function updateWordHighlights() {
     });
 }
 
+// Group words by verse for hover tooltips
+function groupWordsByVerse() {
+    // Remove existing clusters first to avoid double-wrapping
+    const existingClusters = document.querySelectorAll('.verse-cluster');
+    existingClusters.forEach(cluster => {
+        const words = cluster.querySelectorAll('.word');
+        const parent = cluster.parentNode;
+        words.forEach(word => parent.insertBefore(word, cluster));
+        cluster.remove();
+    });
+    
+    const words = Array.from(document.querySelectorAll('.word'));
+    if (words.length === 0) return;
+    
+    // Group consecutive words with same verseId
+    let currentVerseId = null;
+    let startIndex = -1;
+    
+    words.forEach((word, index) => {
+        const verseId = word.dataset.verseId;
+        
+        if (verseId && verseId === currentVerseId) {
+            // Continue current cluster
+            // Do nothing, we'll wrap at the end
+        } else {
+            // End previous cluster if exists
+            if (currentVerseId && startIndex >= 0) {
+                const endIndex = index - 1;
+                if (endIndex >= startIndex) {
+                    wrapVerseCluster(startIndex, endIndex, currentVerseId);
+                }
+            }
+            
+            // Start new cluster
+            if (verseId) {
+                currentVerseId = verseId;
+                startIndex = index;
+            } else {
+                currentVerseId = null;
+                startIndex = -1;
+            }
+        }
+    });
+    
+    // Wrap the last cluster if exists
+    if (currentVerseId && startIndex >= 0) {
+        const endIndex = words.length - 1;
+        if (endIndex >= startIndex) {
+            wrapVerseCluster(startIndex, endIndex, currentVerseId);
+        }
+    }
+}
+
+function wrapVerseCluster(startIndex, endIndex, verseId) {
+    const words = Array.from(document.querySelectorAll('.word'));
+    if (startIndex >= words.length || endIndex >= words.length || startIndex < 0) return;
+    
+    // Find words by their data-word-index attribute
+    const wordsToWrap = [];
+    for (let i = startIndex; i <= endIndex; i++) {
+        const word = words.find(w => parseInt(w.dataset.wordIndex) === i);
+        if (word && !word.parentElement.classList.contains('verse-cluster')) {
+            wordsToWrap.push(word);
+        }
+    }
+    
+    if (wordsToWrap.length === 0) return;
+    
+    const firstWord = wordsToWrap[0];
+    const container = firstWord.parentElement;
+    
+    // Create wrapper
+    const wrapper = document.createElement('span');
+    wrapper.className = 'verse-cluster';
+    wrapper.dataset.verseId = verseId;
+    
+    // Get verse data
+    const verseIndex = parseInt(verseId.split('-')[1]);
+    if (gameState.verses[verseIndex]) {
+        const verse = gameState.verses[verseIndex];
+        wrapper.dataset.verseRef = verse.reference;
+        wrapper.dataset.verseContext = verse.context;
+        
+        // Determine overall correctness for this cluster
+        let hasIncorrect = false;
+        let hasCorrect = false;
+        wordsToWrap.forEach(word => {
+            const letters = word.querySelectorAll('letter');
+            letters.forEach(letter => {
+                if (letter.classList.contains('incorrect')) hasIncorrect = true;
+                if (letter.classList.contains('correct')) hasCorrect = true;
+            });
+        });
+        if (hasIncorrect) wrapper.classList.add('incorrect');
+        else if (hasCorrect) wrapper.classList.add('correct');
+    }
+    
+    // Insert wrapper before first word
+    container.insertBefore(wrapper, firstWord);
+    
+    // Move all words into wrapper
+    wordsToWrap.forEach(word => wrapper.appendChild(word));
+}
+
+// Session snapshot functions
+function createSessionSnapshot() {
+    const phrases = [];
+    const words = document.querySelectorAll('.word');
+    
+    words.forEach((word, wordIndex) => {
+        const letters = Array.from(word.querySelectorAll('letter'));
+        const letterStates = letters.map(letter => {
+            if (letter.classList.contains('correct')) return 'correct';
+            if (letter.classList.contains('incorrect')) return 'incorrect';
+            return 'neutral';
+        });
+        
+        const verseIndex = gameState.wordToVerseMap[wordIndex];
+        const verse = verseIndex !== undefined ? gameState.verses[verseIndex] : null;
+        
+        phrases.push({
+            id: `phrase-${wordIndex}`,
+            wordIndex: wordIndex,
+            text: letters.map(l => l.textContent).join(''),
+            letters: letterStates,
+            correctness: letterStates.some(s => s === 'incorrect') ? 'incorrect' : 
+                        letterStates.some(s => s === 'correct') ? 'correct' : 'neutral',
+            ref: verse ? verse.reference : '',
+            meaning: verse ? verse.context : '',
+            connectsTo: '' // Can be populated later if needed
+        });
+    });
+    
+    // Get raw input (all typed text)
+    const rawInput = phrases.map(p => p.text).join(' ');
+    
+    return {
+        phrases: phrases,
+        rawInput: rawInput,
+        timestamp: Date.now(),
+        mode: gameState.mode,
+        selectedBookName: gameState.selectedBookName,
+        verses: gameState.verses.map(v => ({
+            text: v.text,
+            reference: v.reference,
+            context: v.context
+        })),
+        wordToVerseMap: gameState.wordToVerseMap,
+        currentWordIndex: gameState.currentWordIndex,
+        currentLetterIndex: gameState.currentLetterIndex,
+        correctLetters: gameState.correctLetters,
+        incorrectLetters: gameState.incorrectLetters
+    };
+}
+
+function saveSessionSnapshot() {
+    try {
+        const snapshot = createSessionSnapshot();
+        const json = JSON.stringify(snapshot);
+        
+        // Limit to 5KB as per requirements
+        if (json.length > 5000) {
+            console.warn('Snapshot too large, truncating...');
+            // Could implement truncation logic here if needed
+        }
+        
+        sessionStorage.setItem('lastTestSession', json);
+    } catch (error) {
+        console.error('Failed to save session snapshot:', error);
+    }
+}
+
+function restoreFromSnapshot() {
+    try {
+        const json = sessionStorage.getItem('lastTestSession');
+        if (!json) return false;
+        
+        const snapshot = JSON.parse(json);
+        
+        // Restore game state
+        gameState.mode = snapshot.mode || gameState.mode;
+        gameState.selectedBookName = snapshot.selectedBookName;
+        gameState.verses = snapshot.verses || [];
+        gameState.wordToVerseMap = snapshot.wordToVerseMap || [];
+        gameState.currentWordIndex = snapshot.currentWordIndex || 0;
+        gameState.currentLetterIndex = snapshot.currentLetterIndex || 0;
+        gameState.correctLetters = snapshot.correctLetters || 0;
+        gameState.incorrectLetters = snapshot.incorrectLetters || 0;
+        
+        // Restore selected book
+        if (snapshot.selectedBookName && bibleBooks[snapshot.selectedBookName]) {
+            gameState.selectedBook = bibleBooks[snapshot.selectedBookName];
+        }
+        
+        // Rebuild word list from snapshot
+        const wordList = snapshot.phrases.map(p => p.text);
+        
+        // Render words with snapshot data
+        renderWords(wordList, snapshot);
+        
+        // Update game state references
+        const wordElements = document.querySelectorAll('.word');
+        gameState.words = Array.from(wordElements);
+        gameState.letters = gameState.words.flatMap(word => Array.from(word.querySelectorAll('letter')));
+        
+        // Restore highlights
+        updateWordHighlights();
+        
+        // Update stats
+        updateStats();
+        
+        // Update verse reference
+        if (gameState.verses.length > 0) {
+            const currentVerseIdx = gameState.wordToVerseMap[gameState.currentWordIndex] || 0;
+            gameState.currentVerse = gameState.verses[currentVerseIdx];
+            gameState.currentVerseIndex = currentVerseIdx;
+            updateVerseReference();
+        }
+        
+        // Don't show caret in review mode
+        document.querySelectorAll('caret').forEach(c => c.remove());
+        
+        // Ensure verse clusters are created for hover tooltips
+        setTimeout(() => {
+            groupWordsByVerse();
+        }, 50);
+        
+        return true;
+    } catch (error) {
+        console.error('Failed to restore session snapshot:', error);
+        return false;
+    }
+}
+
 function handleKeydown(e) {
+    // Esc+Tab combo detection for new session
     if (e.key === 'Escape' || e.key === 'Tab') {
-        e.preventDefault();
-        resetTest();
+        // Mark the key as pressed
+        keysPressed[e.key] = true;
+        
+        // Clear any existing timeout
+        if (comboTimeout) {
+            clearTimeout(comboTimeout);
+        }
+        
+        // Check if both keys are pressed (works regardless of order)
+        if (keysPressed['Escape'] && keysPressed['Tab']) {
+            e.preventDefault();
+            e.stopPropagation();
+            startNewSession();
+            return;
+        }
+        
+        // Set timeout to reset key state after 500ms if combo not completed
+        comboTimeout = setTimeout(() => {
+            keysPressed[e.key] = false;
+        }, 500);
+        
+        // Handle Escape alone - close results modal and restore session
+        // Only if Tab is not currently pressed
+        if (e.key === 'Escape' && !keysPressed['Tab']) {
+            const modal = document.getElementById('results-modal');
+            if (modal && modal.style.display === 'flex') {
+                e.preventDefault();
+                resetTest(false);
+                return;
+            }
+        }
+        
+        // Prevent Tab from navigating when tracking for combo
+        if (e.key === 'Tab') {
+            e.preventDefault();
+        }
+        
         return;
+    } else {
+        // Reset combo state on any other key
+        if (comboTimeout) {
+            clearTimeout(comboTimeout);
+            comboTimeout = null;
+        }
+        keysPressed['Escape'] = false;
+        keysPressed['Tab'] = false;
     }
 
     if (!gameState.isTestActive && e.key.length === 1 && e.key !== ' ') {
@@ -522,7 +878,7 @@ function handleKeydown(e) {
             gameState.currentLetterIndex = 0;
             
             // Check if test should end based on mode
-            if (gameState.mode === 'words' && gameState.currentWordIndex >= gameState.words.length) {
+            if (gameState.mode === 'verses' && gameState.currentWordIndex >= gameState.words.length) {
                 endTest();
                 return;
             }
@@ -564,8 +920,8 @@ function handleKeydown(e) {
         }
         gameState.currentLetterIndex++;
         
-        // Check if this was the last letter of the last word in Words mode
-        if (gameState.mode === 'words' && 
+        // Check if this was the last letter of the last word in Verses mode
+        if (gameState.mode === 'verses' && 
             gameState.currentWordIndex === gameState.words.length - 1 && 
             gameState.currentLetterIndex >= letterElements.length) {
             endTest();
@@ -584,6 +940,9 @@ function endTest() {
     gameState.isTestActive = false;
     inputField.blur();
     
+    // Save session snapshot before showing results
+    saveSessionSnapshot();
+    
     // Show results modal
     const modal = document.getElementById('results-modal');
     const finalWpm = document.getElementById('final-wpm');
@@ -601,36 +960,68 @@ function endTest() {
     }
     finalTime.textContent = timeText;
     
-    // Reset context view
-    document.getElementById('results-content').style.display = 'block';
-    document.getElementById('verse-context').style.display = 'none';
-    
     modal.style.display = 'flex';
 }
 
-function resetTest() {
+function resetTest(forceNew = false) {
     clearInterval(gameState.timer);
     clearInterval(gameState.caretTimer);
     
-    // Reset stats display
-    timeEl.textContent = '0s';
-    wpmEl.textContent = '0';
-    accuracyEl.textContent = '100%';
-    verseReferenceEl.textContent = '-';
-    timeEl.parentElement.style.background = '';
-    timeEl.parentElement.style.borderColor = '';
-    
-    // Reset book selection for new test
-    gameState.selectedBook = null;
-    gameState.selectedBookName = null;
-    
-    // Hide results modal and context
+    // Hide results modal
     document.getElementById('results-modal').style.display = 'none';
-    document.getElementById('verse-context').style.display = 'none';
     
-    // Generate new random verses
-    initializeTest();
-    inputField.focus();
+    // If forceNew is true or no snapshot exists, start fresh
+    if (forceNew || !sessionStorage.getItem('lastTestSession')) {
+        // Reset stats display
+        timeEl.textContent = '0s';
+        wpmEl.textContent = '0';
+        accuracyEl.textContent = '100%';
+        verseReferenceEl.textContent = '-';
+        timeEl.parentElement.style.background = '';
+        timeEl.parentElement.style.borderColor = '';
+        
+        // Reset book selection for new test
+        gameState.selectedBook = null;
+        gameState.selectedBookName = null;
+        
+        // Clear snapshot
+        sessionStorage.removeItem('lastTestSession');
+        
+        // Generate new random verses
+        initializeTest();
+        inputField.focus();
+    } else {
+        // Restore from snapshot
+        const restored = restoreFromSnapshot();
+        if (restored) {
+            // Stats are already updated in restoreFromSnapshot
+            // Just ensure input field is focused
+            inputField.focus();
+        } else {
+            // Fallback to new test if restore fails
+            initializeTest();
+            inputField.focus();
+        }
+    }
+}
+
+function startNewSession() {
+    // Clear snapshot
+    sessionStorage.removeItem('lastTestSession');
+    
+    // Show confirmation toast
+    showToast('New session started.');
+    
+    // Reset to new test
+    resetTest(true);
+    
+    // Reset key states
+    keysPressed['Escape'] = false;
+    keysPressed['Tab'] = false;
+    if (comboTimeout) {
+        clearTimeout(comboTimeout);
+        comboTimeout = null;
+    }
 }
 
 // Mode selection handlers
@@ -643,15 +1034,15 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
         
         // Hide all config sections
         document.getElementById('timer-config').style.display = 'none';
-        document.getElementById('words-config').style.display = 'none';
+        document.getElementById('verses-config').style.display = 'none';
         
         // Show relevant config section
         if (gameState.mode === 'timer') {
             document.getElementById('timer-config').style.display = 'block';
             gameState.timeLimit = parseInt(timerDuration.value);
-        } else if (gameState.mode === 'words') {
-            document.getElementById('words-config').style.display = 'block';
-            gameState.wordLimit = parseInt(wordsCount.value);
+        } else if (gameState.mode === 'verses') {
+            document.getElementById('verses-config').style.display = 'block';
+            gameState.verseLimit = parseInt(versesCount.value);
         }
         
         resetTest();
@@ -664,55 +1055,204 @@ timerDuration.addEventListener('change', () => {
     resetTest();
 });
 
-wordsCount.addEventListener('change', () => {
-    gameState.wordLimit = parseInt(wordsCount.value);
+versesCount.addEventListener('change', () => {
+    gameState.verseLimit = parseInt(versesCount.value);
     resetTest();
 });
 
-function showVerseContext() {
-    const contextEl = document.getElementById('verse-context');
-    const resultsEl = document.getElementById('results-content');
-    const bookTitle = document.getElementById('context-book-title');
-    const verseRef = document.getElementById('context-verse-reference');
-    const description = document.getElementById('context-description');
-    
-    // Get the current verse context
-    const currentVerseData = gameState.currentVerse;
-    if (currentVerseData && currentVerseData.context) {
-        // Special titles for creeds and prayers
-        let displayTitle = gameState.selectedBookName;
-        if (gameState.selectedBookName === "Nicene Creed") {
-            displayTitle = "First Ecumenical Council - Nicaea (325 AD)";
-        } else if (gameState.selectedBookName === "Apostles Creed") {
-            displayTitle = "Apostles Creed - Ancient Baptismal Formula (2nd Century)";
-        } else if (gameState.selectedBookName === "Hail Mary") {
-            displayTitle = "The Angelic Salutation - Luke 1:28, 1:42";
-        } else if (gameState.selectedBookName === "Glory Be") {
-            displayTitle = "The Trinitarian Doxology - Ancient Church Prayer";
-        }
-        
-        bookTitle.textContent = displayTitle;
-        verseRef.textContent = currentVerseData.reference;
-        description.textContent = currentVerseData.context;
+// Toast notification function
+function showToast(message) {
+    // Remove existing toast if any
+    const existingToast = document.getElementById('toast-notification');
+    if (existingToast) {
+        existingToast.remove();
     }
     
-    // Hide results, show context
-    resultsEl.style.display = 'none';
-    contextEl.style.display = 'block';
+    const toast = document.createElement('div');
+    toast.id = 'toast-notification';
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #7877c6 0%, #ff77c6 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 0.5rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9rem;
+        z-index: 10000;
+        box-shadow: 0 8px 24px rgba(120, 119, 198, 0.3);
+        animation: slideInRight 0.3s ease;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 2 seconds
+    setTimeout(() => {
+        toast.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
 }
 
-function backToResults() {
-    document.getElementById('verse-context').style.display = 'none';
-    document.getElementById('results-content').style.display = 'block';
+// Hover tooltip functionality
+let tooltipElement = null;
+let tooltipTimeout = null;
+
+function createTooltip(verseCluster) {
+    // Remove existing tooltip
+    if (tooltipElement) {
+        tooltipElement.remove();
+        tooltipElement = null;
+    }
+    
+    const verseRef = verseCluster.dataset.verseRef || '';
+    const verseContext = verseCluster.dataset.verseContext || '';
+    const connectsTo = verseCluster.dataset.connectsTo || '';
+    
+    if (!verseRef && !verseContext) return;
+    
+    tooltipElement = document.createElement('div');
+    tooltipElement.className = 'verse-tooltip';
+    tooltipElement.setAttribute('role', 'tooltip');
+    tooltipElement.setAttribute('aria-describedby', 'verse-tooltip-content');
+    
+    let html = `<strong>${verseRef}</strong><br>${verseContext}`;
+    if (connectsTo) {
+        html += `<em>${connectsTo}</em>`;
+    }
+    tooltipElement.innerHTML = html;
+    
+    document.body.appendChild(tooltipElement);
+    
+    // Position tooltip
+    positionTooltip(verseCluster, tooltipElement);
+}
+
+function positionTooltip(target, tooltip) {
+    const rect = target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    
+    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.top - tooltipRect.height - 12;
+    
+    // Adjust if tooltip goes off screen
+    if (left < 12) left = 12;
+    if (left + tooltipRect.width > window.innerWidth - 12) {
+        left = window.innerWidth - tooltipRect.width - 12;
+    }
+    if (top < 12) {
+        // Show below instead
+        top = rect.bottom + 12;
+    }
+    
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+}
+
+function showTooltip(verseCluster) {
+    // Debounce with 100ms delay
+    if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+    }
+    
+    tooltipTimeout = setTimeout(() => {
+        createTooltip(verseCluster);
+    }, 100);
+}
+
+function hideTooltip() {
+    if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = null;
+    }
+    if (tooltipElement) {
+        tooltipElement.remove();
+        tooltipElement = null;
+    }
 }
 
 // Event listeners
 document.addEventListener('keydown', handleKeydown);
+document.addEventListener('keyup', (e) => {
+    // Reset key state when released (with small delay to allow combo detection)
+    if (e.key === 'Escape' || e.key === 'Tab') {
+        // Use a longer delay to allow for simultaneous key presses
+        setTimeout(() => {
+            keysPressed[e.key] = false;
+        }, 200);
+    }
+});
 document.addEventListener('click', () => inputField.focus());
-document.getElementById('restart-btn').addEventListener('click', resetTest);
-document.getElementById('learn-more-btn').addEventListener('click', showVerseContext);
-document.getElementById('back-to-results').addEventListener('click', backToResults);
 
-// Initialize
-initializeTest();
-inputField.focus();
+// Hover tooltip event delegation - use document for better reliability
+document.addEventListener('mouseover', (e) => {
+    const verseCluster = e.target.closest('.verse-cluster');
+    if (verseCluster) {
+        showTooltip(verseCluster);
+    }
+});
+
+document.addEventListener('mouseout', (e) => {
+    const verseCluster = e.target.closest('.verse-cluster');
+    if (verseCluster) {
+        // Check if we're moving to another element within the cluster
+        const relatedTarget = e.relatedTarget;
+        if (!relatedTarget || !verseCluster.contains(relatedTarget)) {
+            hideTooltip();
+        }
+    }
+});
+
+// Handle tooltip positioning on scroll/resize
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    if (tooltipElement) {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            const activeCluster = document.querySelector('.verse-cluster:hover');
+            if (activeCluster) {
+                positionTooltip(activeCluster, tooltipElement);
+            }
+        }, 100);
+    }
+});
+
+// Removed button event listeners since buttons are no longer in the UI
+
+// Close modal on outside click or Escape (without Tab)
+const resultsModal = document.getElementById('results-modal');
+if (resultsModal) {
+    resultsModal.addEventListener('click', (e) => {
+        if (e.target === resultsModal) {
+            // Clicked outside modal content
+            resetTest(false);
+        }
+    });
+}
+
+// Initialize - check for snapshot on page load
+function initializeApp() {
+    // Check if there's a saved session
+    const hasSnapshot = sessionStorage.getItem('lastTestSession');
+    if (hasSnapshot) {
+        // Try to restore
+        const restored = restoreFromSnapshot();
+        if (!restored) {
+            // If restore fails, start fresh
+            initializeTest();
+        }
+    } else {
+        // No snapshot, start fresh
+        initializeTest();
+    }
+    inputField.focus();
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    // DOM already loaded
+    initializeApp();
+}

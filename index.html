@@ -15,10 +15,10 @@
             <div class="header-controls">
                 <div class="mode-selector">
                     <button class="mode-btn active" data-mode="timer">timer</button>
-                    <button class="mode-btn" data-mode="words">words</button>
+                    <button class="mode-btn" data-mode="verses">verses</button>
                 </div>
                 <div class="mode-config">
-                    <div class="config-group" id="timer-config" style="display: none;">
+                    <div class="config-group" id="timer-config" style="display: block;">
                         <select id="timer-duration">
                             <option value="15">15s</option>
                             <option value="30">30s</option>
@@ -26,12 +26,12 @@
                             <option value="120">120s</option>
                         </select>
                     </div>
-                    <div class="config-group" id="words-config" style="display: none;">
-                        <select id="words-count">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50" selected>50</option>
-                            <option value="100">100</option>
+                    <div class="config-group" id="verses-config" style="display: none;">
+                        <select id="verses-count">
+                            <option value="1">1 verse</option>
+                            <option value="2">2 verses</option>
+                            <option value="5" selected>5 verses</option>
+                            <option value="10">10 verses</option>
                         </select>
                     </div>
                 </div>
@@ -70,7 +70,7 @@
     
     <div id="results-modal" class="results-modal" style="display: none;">
         <div class="results-content" id="results-content">
-            <h2>Test Complete!</h2>
+            <h2>Review Your Session</h2>
             <div class="results-stats">
                 <div class="result-stat">
                     <div class="result-label">WPM</div>
@@ -85,21 +85,7 @@
                     <div class="result-value" id="final-time">0s</div>
                 </div>
             </div>
-            <button id="learn-more-btn" class="learn-more-btn">Learn More</button>
-            <button id="restart-btn" class="restart-btn">Try Again</button>
-        </div>
-        
-        <div id="verse-context" class="verse-context" style="display: none;">
-            <div class="context-content">
-                <div class="context-header">
-                    <h3 id="context-book-title"></h3>
-                    <p id="context-verse-reference"></p>
-                </div>
-                <div class="context-text">
-                    <p id="context-description"></p>
-                </div>
-                <button id="back-to-results" class="back-btn">Back to Results</button>
-            </div>
+            <p class="review-instructions">Hover over verses to learn more • Press Esc+Tab to start a new test</p>
         </div>
     </div>
     

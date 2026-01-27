@@ -133,23 +133,27 @@ body::before {
 .text {
     font-size: 1.75rem;
     line-height: 1.8;
-    max-width: 1200px;
-    text-align: center;
+    width: 900px;
+    text-align: left;
     position: relative;
+    padding: 0 2rem;
 }
 
 .words {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.75rem;
+    justify-content: flex-start;
+    gap: 1.5rem;
+    line-height: 1.8;
 }
 
 .word {
-    margin: 0.25rem;
-    display: flex;
+    margin: 0;
+    margin-right: 0.5rem;
+    display: inline-flex;
     position: relative;
     transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
 letter {
@@ -183,7 +187,25 @@ letter.incorrect {
     border: 1px solid rgba(107, 114, 128, 0.2);
     transform: scale(1.1);
     transform-origin: center center;
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform;
+}
+
+.word.active letter {
+    color: #e0e0e0;
+    text-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.word.active caret {
+    display: inline-block;
+    width: 3px;
+    height: 2rem;
+    background: linear-gradient(180deg, #e0e0e0 0%, #9ca3af 100%);
+    opacity: 1;
+    transition: opacity 0.3s ease, height 0.2s ease;
+    border-radius: 1px;
+    box-shadow: 0 0 8px rgba(224, 224, 224, 0.5);
+    vertical-align: middle;
 }
 
 .word.active letter {
@@ -308,11 +330,20 @@ caret {
 
 .results-content h2 {
     font-size: 2.5rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     background: linear-gradient(135deg, #e0e0e0 0%, #9ca3af 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.review-instructions {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    margin-top: 1.5rem;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.6;
 }
 
 .results-stats {
@@ -455,4 +486,118 @@ caret {
 .back-btn:hover {
     background: rgba(107, 114, 128, 0.3);
     transform: translateY(-1px);
+}
+
+/* Verse cluster styling for hover tooltips */
+.verse-cluster {
+    display: inline-flex;
+    flex-wrap: wrap;
+    position: relative;
+    cursor: help;
+    transition: all 0.15s ease;
+}
+
+.verse-cluster:hover {
+    background: rgba(120, 119, 198, 0.1);
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.2rem;
+    margin: -0.1rem -0.2rem;
+}
+
+/* Tooltip styling */
+.verse-tooltip {
+    position: fixed;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #e0e0e0;
+    padding: 1rem 1.25rem;
+    border-radius: 0.75rem;
+    max-width: 250px;
+    max-height: 300px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    border: 1px solid rgba(107, 114, 128, 0.3);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    pointer-events: none;
+    font-family: 'JetBrains Mono', monospace;
+    animation: tooltipFadeIn 0.15s ease;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.verse-tooltip strong {
+    color: #fbbf24;
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.verse-tooltip em {
+    color: #9ca3af;
+    font-style: italic;
+    font-size: 0.85rem;
+    display: block;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+/* Allow scrolling for long tooltip text */
+.verse-tooltip {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.verse-tooltip::-webkit-scrollbar {
+    width: 6px;
+}
+
+.verse-tooltip::-webkit-scrollbar-track {
+    background: rgba(107, 114, 128, 0.1);
+    border-radius: 3px;
+}
+
+.verse-tooltip::-webkit-scrollbar-thumb {
+    background: rgba(107, 114, 128, 0.3);
+    border-radius: 3px;
+}
+
+.verse-tooltip::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.5);
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
 }
