@@ -45,6 +45,45 @@ Example response:
 ```
 
 ---
+
+## Lightweight CPDV API (Typing + Notes)
+
+> Version 1.0.0
+
+These endpoints are CPDV-only and do not accept a `version` query param.
+
+```plaintext
+GET /api/cpdv/v1/typing/verse
+GET /api/cpdv/v1/notes/:verseId
+```
+
+`verseId` format: `{testament}-{book}-{chapter}-{verse}`
+
+Example response for typing:
+
+```json
+{
+  "id": "OT-Psalms-116-1",
+  "text": "Alleluia. All nations, praise the Lord. All peoples, praise him.",
+  "ref": "Psalms 116:1",
+  "book": "Psalms",
+  "chapter": 116,
+  "verse": 1,
+  "wordCount": 12
+}
+```
+
+Example response for notes:
+
+```json
+{
+  "verseId": "OT-Psalms-116-1",
+  "ref": "Psalms 116:1",
+  "noteHtml": "<p>Liturgical use note...</p>"
+}
+```
+
+---
 ## Book Names in a Testament
 
 > Version 1.0.0
@@ -464,4 +503,3 @@ Example response:
 ```
 
 ---
-

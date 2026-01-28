@@ -4,6 +4,8 @@
 
 **A Catholic typing practice tool with Scripture, Creeds, and Prayers**
 
+Refactoring in progress: the backend is being rebuilt on the open-source Bible API, and the frontend is being rebuilt from the open-source Monkeytype UI while I reshape it to my own style.
+
 ---
 
 ## What is ScriptureType?

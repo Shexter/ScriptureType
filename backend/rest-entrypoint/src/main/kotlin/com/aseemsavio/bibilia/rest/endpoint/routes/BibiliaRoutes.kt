@@ -1,6 +1,11 @@
 package com.aseemsavio.bibilia.rest.endpoint.routes
 
 import com.aseemsavio.bibilia.core.api.BibiliaService
+import com.aseemsavio.bibilia.core.api.CpdvLightweightService
+import com.aseemsavio.bibilia.data.VerseNotePayload
+import com.aseemsavio.bibilia.data.TypingVersePayload
+import com.aseemsavio.bibilia.data.TypingChapterPayload
+import com.aseemsavio.bibilia.data.NotesChapterPayload
 import com.aseemsavio.bibilia.data.b
 import com.aseemsavio.bibilia.data.c
 import com.aseemsavio.bibilia.data.t
@@ -22,7 +27,8 @@ import kotlin.coroutines.CoroutineContext
  * This is where all the route configuration should go.
  */
 class BibiliaRoutes(
-    private val service: BibiliaService
+    private val service: BibiliaService,
+    private val cpdvService: CpdvLightweightService
 ) : CoroutineScope {
 
     private val default = "Vulgate"
@@ -30,6 +36,12 @@ class BibiliaRoutes(
     suspend fun configureRoutes(router: Router) {
         with(router) {
             `health check route`(this)
+            // Legacy CPDV endpoints
+            `cpdv typing route`(this)
+            `cpdv notes route`(this)
+            // PRD-aligned lightweight CPDV endpoints
+            `cpdv typing chapter route`(this)
+            `cpdv notes chapter route`(this)
             `testament routes`(this)
             `get book names in testament route`(this)
             `get all book names route`(this)
@@ -47,6 +59,86 @@ class BibiliaRoutes(
                 val res =
                     "Gloria Patri, et filio, et spiritui sancto in saecula saeculorum! Biblia Sacra Vulgata is UP!!"
                 ok { text { res } }
+            }
+        }
+    }
+
+    private suspend fun `cpdv typing route`(router: Router) {
+        router.get("/api/cpdv/v1/typing/verse").serve {
+            with(it) {
+                val res: TypingVersePayload? = cpdvService.getRandomVerseTypingPayload()
+                fold(
+                    res,
+                    { ok { json { res } } },
+                    { notFound { } }
+                )
+            }
+        }
+    }
+
+    private suspend fun `cpdv notes route`(router: Router) {
+        router.get("/api/cpdv/v1/notes/:verseId").serve {
+            with(it) {
+                val verseId = pp { "verseId" }
+                val res: VerseNotePayload? = cpdvService.getVerseNotePayload(verseId)
+                fold(
+                    res,
+                    { ok { json { res } } },
+                    { notFound { } }
+                )
+            }
+        }
+    }
+
+    // PRD-aligned lightweight endpoints
+    private suspend fun `cpdv typing chapter route`(router: Router) {
+        router.get("/api/cpdv/v1/typing/chapter/:testament/:book/:chapter").serve {
+            with(it) {
+                val testament = pp { "testament" }
+                val book = pp { "book" }
+                val chapter = ppAsInt { "chapter" }
+                val res: TypingChapterPayload? = cpdvService.getTypingChapterPayload(testament.t, book.b, chapter.c)
+                
+                if (res != null) {
+                    // Check If-None-Match header for caching
+                    val ifNoneMatch = request().getHeader("If-None-Match")
+                    if (ifNoneMatch == res.hash) {
+                        response().statusCode = 304
+                        response().end()
+                    } else {
+                        response().putHeader("ETag", res.hash)
+                        response().putHeader("Cache-Control", "public, max-age=3600")
+                        ok { json { res } }
+                    }
+                } else {
+                    notFound { }
+                }
+            }
+        }
+    }
+
+    private suspend fun `cpdv notes chapter route`(router: Router) {
+        router.get("/api/cpdv/v1/notes/:testament/:book/:chapter").serve {
+            with(it) {
+                val testament = pp { "testament" }
+                val book = pp { "book" }
+                val chapter = ppAsInt { "chapter" }
+                val res: NotesChapterPayload? = cpdvService.getNotesChapterPayload(testament.t, book.b, chapter.c)
+                
+                if (res != null) {
+                    // Check If-None-Match header for caching
+                    val ifNoneMatch = request().getHeader("If-None-Match")
+                    if (ifNoneMatch == res.hash) {
+                        response().statusCode = 304
+                        response().end()
+                    } else {
+                        response().putHeader("ETag", res.hash)
+                        response().putHeader("Cache-Control", "public, max-age=3600")
+                        ok { json { res } }
+                    }
+                } else {
+                    notFound { }
+                }
             }
         }
     }
