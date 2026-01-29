@@ -1,0 +1,120 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap");
+
+body {
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+  color: #e0e0e0;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(100, 200, 255, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+header,
+.footer {
+  backdrop-filter: blur(10px);
+  background: rgba(15, 15, 35, 0.3);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+#words .word.active {
+  background: rgba(107, 114, 128, 0.15);
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.4rem;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(107, 114, 128, 0.2);
+  transform: scale(1.05);
+}
+
+#words .word letter.correct,
+#words .word.correct letter {
+  color: #e0e0e0;
+  text-shadow: 0 0 8px rgba(224, 224, 224, 0.3);
+}
+
+#words .word letter.incorrect,
+#words .word.incorrect letter {
+  color: #ef4444;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+#words .word.active letter.correct {
+  color: #10b981;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+#words .word.active caret,
+#words caret {
+  width: 3px;
+  height: 1.8rem;
+  background: linear-gradient(180deg, #e0e0e0 0%, #9ca3af 100%);
+  box-shadow: 0 0 8px rgba(224, 224, 224, 0.5);
+  border-radius: 1px;
+}
+
+.stat,
+.result-stat,
+.wordHistory,
+.buttons,
+.button,
+.section,
+.modal {
+  background: rgba(30, 30, 46, 0.6);
+  border: 1px solid rgba(107, 114, 128, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.stat .top,
+.result-label,
+.title,
+.sub,
+.tip,
+.buttons .textButton {
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat .bottom,
+.result-value,
+.countdown,
+.timer,
+.pageLoading,
+#logo,
+#logo .text {
+  background: linear-gradient(135deg, #e0e0e0 0%, #9ca3af 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+button.active,
+.button.active {
+  background: linear-gradient(135deg, #7877c6 0%, #ff77c6 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(120, 119, 198, 0.3);
+}
+
+button:hover,
+.button:hover {
+  background: rgba(120, 119, 198, 0.2);
+}
+
+.notification,
+.toast {
+  background: rgba(30, 30, 46, 0.8);
+  border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+.caret {
+  background: linear-gradient(180deg, #e0e0e0 0%, #9ca3af 100%);
+}

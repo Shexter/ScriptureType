@@ -137,6 +137,27 @@
             background: rgba(248, 113, 113, 0.1);
             border-radius: 4px;
             margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .error-message {
+            flex: 1;
+        }
+
+        .error button {
+            padding: 0.4rem 0.8rem;
+            border: 1px solid #f87171;
+            background: transparent;
+            color: #f87171;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .error button:hover {
+            background: rgba(248, 113, 113, 0.15);
         }
         
         .loading {
@@ -150,6 +171,36 @@
             text-align: center;
             color: #d4af37;
             font-size: 0.9rem;
+        }
+
+        .word.has-note {
+            text-decoration: underline dotted rgba(212, 175, 55, 0.7);
+            text-underline-offset: 4px;
+        }
+
+        .notes-tooltip {
+            position: absolute;
+            z-index: 10;
+            max-width: 320px;
+            background: #111;
+            color: #e0e0e0;
+            border: 1px solid #d4af37;
+            border-radius: 6px;
+            padding: 0.75rem;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+            display: none;
+        }
+
+        .notes-tooltip-title {
+            font-weight: 600;
+            color: #d4af37;
+            margin-bottom: 0.5rem;
+        }
+
+        .notes-tooltip ul {
+            margin-left: 1rem;
         }
     </style>
 </head>
@@ -170,7 +221,10 @@
         <button onclick="loadRandomVerse()">Random Verse</button>
     </div>
     
-    <div id="error" class="error" style="display: none;"></div>
+    <div id="error" class="error" style="display: none;">
+        <span class="error-message" id="error-message"></span>
+        <button id="retry-button" type="button" style="display: none;">Retry</button>
+    </div>
     <div id="loading" class="loading" style="display: none;">Loading...</div>
     
     <div class="text-display" id="text-display">
@@ -178,6 +232,8 @@
     </div>
     
     <div class="verse-ref" id="verse-ref"></div>
+
+    <div id="notes-tooltip" class="notes-tooltip"></div>
     
     <div class="stats">
         <div class="stat">
@@ -197,7 +253,10 @@
     <input type="text" id="typing-input" autocomplete="off" spellcheck="false">
     
     <script>
-        const API_BASE = 'http://localhost:8080';
+        const API_BASE = 'http://localhost:8081';
+        const notesCache = new Map();
+        const etagCache = new Map();
+        let lastRetryAction = null;
         
         // Typing state
         let typingState = {
@@ -211,13 +270,47 @@
             wordElements: []
         };
         
-        function showError(message) {
+        function showError(message, retryAction = null) {
             const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
+            const errorMessage = document.getElementById('error-message');
+            const retryButton = document.getElementById('retry-button');
+            errorMessage.textContent = message;
+            lastRetryAction = retryAction;
+            retryButton.style.display = retryAction ? 'inline-flex' : 'none';
+            errorDiv.style.display = 'flex';
             setTimeout(() => {
                 errorDiv.style.display = 'none';
             }, 5000);
+        }
+
+        function setupRetry() {
+            const retryButton = document.getElementById('retry-button');
+            retryButton.addEventListener('click', () => {
+                if (lastRetryAction) {
+                    lastRetryAction();
+                }
+            });
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function fetchWithRetry(url, options = {}, retries = 1, retryDelay = 800) {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok && response.status >= 500 && retries > 0) {
+                    await delay(retryDelay);
+                    return fetchWithRetry(url, options, retries - 1, retryDelay);
+                }
+                return response;
+            } catch (error) {
+                if (retries > 0) {
+                    await delay(retryDelay);
+                    return fetchWithRetry(url, options, retries - 1, retryDelay);
+                }
+                throw error;
+            }
         }
         
         function showLoading(show) {
@@ -240,13 +333,20 @@
             try {
                 const url = `${API_BASE}/api/cpdv/v1/typing/chapter/${testament}/${encodeURIComponent(book)}/${chapter}`;
                 console.log('Fetching:', url);
-                const response = await fetch(url, {
+                const cacheKey = `chapter:${testament}:${book}:${chapter}`;
+                const headers = {
+                    'Accept': 'application/json'
+                };
+                const cachedEtag = etagCache.get(cacheKey);
+                if (cachedEtag) {
+                    headers['If-None-Match'] = cachedEtag;
+                }
+
+                const response = await fetchWithRetry(url, {
                     method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
+                    headers,
                     mode: 'cors'
-                });
+                }, 1);
                 
                 if (!response.ok) {
                     if (response.status === 304) {
@@ -265,6 +365,7 @@
                 // Show ETag info
                 const etag = response.headers.get('ETag');
                 if (etag) {
+                    etagCache.set(cacheKey, etag);
                     document.getElementById('status').textContent = `Loaded (ETag: ${etag.substring(0, 20)}...)`;
                 } else {
                     document.getElementById('status').textContent = 'Loaded';
@@ -274,7 +375,7 @@
                 loadNotes(testament, book, chapter);
                 
             } catch (error) {
-                showError(`Failed to load chapter: ${error.message}`);
+                showError(`Failed to load chapter: ${error.message}`, loadChapter);
                 document.getElementById('status').textContent = 'Error';
             } finally {
                 showLoading(false);
@@ -284,16 +385,61 @@
         async function loadNotes(testament, book, chapter) {
             try {
                 const url = `${API_BASE}/api/cpdv/v1/notes/${testament}/${encodeURIComponent(book)}/${chapter}`;
-                const response = await fetch(url);
+                const cacheKey = `notes:${testament}:${book}:${chapter}`;
+                const headers = {};
+                const cachedEtag = etagCache.get(cacheKey);
+                if (cachedEtag) {
+                    headers['If-None-Match'] = cachedEtag;
+                }
+
+                const response = await fetchWithRetry(url, { headers }, 1);
+
+                if (response.status === 304) {
+                    return;
+                }
                 
                 if (response.ok) {
                     const notesData = await response.json();
-                    console.log('Notes loaded:', notesData);
-                    // Notes are available for hover functionality
+                    const etag = response.headers.get('ETag');
+                    if (etag) {
+                        etagCache.set(cacheKey, etag);
+                    }
+                    hydrateNotes(notesData);
                 }
             } catch (error) {
                 console.log('Notes not available:', error.message);
             }
+        }
+
+        function hydrateNotes(notesData) {
+            notesCache.clear();
+            if (!notesData || !Array.isArray(notesData.notes)) {
+                return;
+            }
+            notesData.notes.forEach((noteGroup) => {
+                const verseNumber = noteGroup.v;
+                const items = (noteGroup.n || []).map((noteItem) => {
+                    const text = noteItem.txt || noteItem.text || '';
+                    const source = noteItem.src ? ` (${noteItem.src})` : '';
+                    return `${text}${source}`.trim();
+                }).filter(Boolean);
+                if (items.length > 0) {
+                    notesCache.set(String(verseNumber), items);
+                }
+            });
+            applyNotesToDisplay();
+        }
+
+        function applyNotesToDisplay() {
+            const words = typingState.wordElements;
+            words.forEach((word) => {
+                const verseId = word.dataset.verse;
+                if (verseId && notesCache.has(verseId)) {
+                    word.classList.add('has-note');
+                } else {
+                    word.classList.remove('has-note');
+                }
+            });
         }
         
         function displayChapter(data) {
@@ -314,7 +460,7 @@
                 const words = verse.tx.split(' ');
                 words.forEach(word => {
                     typingState.words.push(word);
-                    html += `<span class="word" data-word="${word}">`;
+                    html += `<span class="word" data-word="${word}" data-verse="${verse.v}">`;
                     word.split('').forEach((char, idx) => {
                         html += `<span class="char" data-char="${char}">${char === ' ' ? '&nbsp;' : char}</span>`;
                     });
@@ -336,6 +482,7 @@
             
             // Update display
             updateTypingDisplay();
+            applyNotesToDisplay();
             
             // Focus input for typing
             document.getElementById('typing-input').focus();
@@ -451,10 +598,41 @@
         document.addEventListener('DOMContentLoaded', () => {
             const input = document.getElementById('typing-input');
             input.addEventListener('keydown', handleTyping);
+            setupRetry();
             
             // Keep input focused when clicking on text display
             document.getElementById('text-display').addEventListener('click', () => {
                 input.focus();
+            });
+
+            const display = document.getElementById('text-display');
+            const tooltip = document.getElementById('notes-tooltip');
+
+            display.addEventListener('mousemove', (event) => {
+                const target = event.target.closest('.word');
+                if (!target) {
+                    tooltip.style.display = 'none';
+                    return;
+                }
+
+                const verseId = target.dataset.verse;
+                if (!verseId || !notesCache.has(verseId)) {
+                    tooltip.style.display = 'none';
+                    return;
+                }
+
+                const notes = notesCache.get(verseId);
+                tooltip.innerHTML = `
+                    <div class="notes-tooltip-title">Notes for verse ${verseId}</div>
+                    <ul>${notes.map(note => `<li>${note}</li>`).join('')}</ul>
+                `;
+                tooltip.style.display = 'block';
+                tooltip.style.left = `${event.pageX + 12}px`;
+                tooltip.style.top = `${event.pageY + 12}px`;
+            });
+
+            display.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
             });
         });
         
@@ -464,13 +642,13 @@
             
             try {
                 console.log('Fetching random verse from:', `${API_BASE}/api/cpdv/v1/typing/verse`);
-                const response = await fetch(`${API_BASE}/api/cpdv/v1/typing/verse`, {
+                const response = await fetchWithRetry(`${API_BASE}/api/cpdv/v1/typing/verse`, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
                     },
                     mode: 'cors'
-                });
+                }, 1);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -510,7 +688,7 @@
                 document.getElementById('typing-input').focus();
                 
             } catch (error) {
-                showError(`Failed to load verse: ${error.message}`);
+                showError(`Failed to load verse: ${error.message}`, loadRandomVerse);
                 document.getElementById('status').textContent = 'Error';
             } finally {
                 showLoading(false);

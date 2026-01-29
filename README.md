@@ -8,6 +8,27 @@ Refactoring in progress: the backend is being rebuilt on the open-source Bible A
 
 ---
 
+## Repository Layout (Current vs Target)
+
+**Current layout**
+- `backend/` → Kotlin Scripture API (verse data)
+- `monkeytype/` → Monkeytype monorepo
+  - `frontend/` → Monkeytype UI app
+  - `backend/` → Monkeytype API (accounts/stats)
+  - `docker/`, `docs/`, `packages/`
+- `prototype/` + `old-prototype/` → historical UI prototypes
+
+**Target layout (plan only, no moves yet)**
+- `apps/frontend` → Monkeytype UI app
+- `apps/monkeytype-api` → Monkeytype API (accounts/stats)
+- `apps/verse-api` → Kotlin Scripture API
+- `packages/` → shared tooling/config
+- `docs/architecture/` → runbooks and structure
+
+See the refactor plan for rationale and mapping: `plans/refactor-monorepo-plan.md`.
+
+---
+
 ## What is ScriptureType?
 
 A clean, distraction-free typing test that helps you:
@@ -47,11 +68,24 @@ A clean, distraction-free typing test that helps you:
 git clone https://github.com/yourusername/scripturetype.git
 cd scripturetype
 
-# Open in browser
-open index.html
+# Prototype (simple HTML)
+open prototype/index.html
 ```
 
-Or just open `index.html` directly in your browser!
+Or serve the prototype with a local HTTP server from `prototype/`.
+
+### Docker (Repo Compose)
+
+For the Monkeytype frontend + backend using this repo’s code, use:
+
+- `monkeytype/docker/docker-compose.yml`
+- `monkeytype/docker/.env` (copy from `monkeytype/docker/example.env`)
+
+Run from repo root:
+
+```bash
+docker compose -f monkeytype/docker/docker-compose.yml up -d --build
+```
 
 ---
 

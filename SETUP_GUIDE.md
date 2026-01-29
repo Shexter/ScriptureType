@@ -1,6 +1,6 @@
 # Local Testing Environment Setup Guide
 
-This guide will walk you through setting up your local environment to test the ScriptureType backend and frontend prototype.
+This guide will walk you through setting up your local environment to test the ScriptureType backend and frontend prototype, plus the Monkeytype UI via Docker from this repo.
 
 > **Note:** This guide is written for **zsh** shell (default on macOS Catalina and later). All commands use `zsh` syntax. If you're using bash, most commands will work the same, but environment variable setup may differ.
 
@@ -90,7 +90,7 @@ The backend needs internet access to download:
 
 Make sure your firewall allows outbound connections.
 
-## Backend Setup
+## Backend Setup (Kotlin Verse API)
 
 ### Step 1: Navigate to Backend Directory
 
@@ -164,7 +164,7 @@ curl http://localhost:8080/
 Gloria Patri, et filio, et spiritui sancto in saecula saeculorum! Biblia Sacra Vulgata is UP!!
 ```
 
-## Frontend Setup
+## Frontend Setup (Prototype)
 
 The frontend prototype is a simple HTML file that doesn't require any build process.
 
@@ -199,7 +199,7 @@ http-server -p 3000
 3. You should see the interface without errors
 4. Try clicking "Random Verse" button to test the connection
 
-## Testing the Endpoints
+## Testing the Endpoints (Verse API)
 
 ### Using curl (Command Line)
 
@@ -265,6 +265,43 @@ curl http://localhost:8080/api/cpdv/v1/typing/verse
    - Look at the "Status" stat box
    - Should show "Loaded" when successful
    - Shows ETag information if available
+
+## Monkeytype UI (Docker from this repo)
+
+This uses the compose file in `monkeytype/docker/docker-compose.yml` so the Docker build pulls **this repo’s** Monkeytype UI and backend.
+
+### Step 1: Prepare .env
+
+```zsh
+cd /Users/timothylauw/Documents/Github\ Repos/typescripture/monkeytype/docker
+cp example.env .env
+```
+
+If the Kotlin verse API is running on your host at `http://localhost:8080`, keep:
+
+```
+SCRIPTURE_API_URL=http://host.docker.internal:8080
+```
+
+### Step 2: Build and run
+
+From repo root:
+
+```zsh
+cd /Users/timothylauw/Documents/Github\ Repos/typescripture
+docker compose -f monkeytype/docker/docker-compose.yml up -d --build
+```
+
+### Step 3: Open the UI
+
+Open: `http://localhost:8080`
+
+If you see the default Monkeytype UI after edits, rebuild with `--no-cache`:
+
+```zsh
+docker compose -f monkeytype/docker/docker-compose.yml build --no-cache
+docker compose -f monkeytype/docker/docker-compose.yml up -d
+```
 
 ## Troubleshooting
 

@@ -1,0 +1,29 @@
+api:
+  - any: ["monkeytype/frontend/src/ts/ape/**/*", "monkeytype/backend/src/api/**/*"]
+
+assets:
+  - any: ["monkeytype/frontend/static/**/*"]
+    all: ["!monkeytype/frontend/static/**/*.html"]
+
+backend:
+  - any: ["monkeytype/backend/**/*"]
+
+docs:
+  - any: ["**/*.md"]
+
+frontend:
+  - any: ["monkeytype/frontend/**/*"]
+
+packages:
+  - any: ["monkeytype/packages/**/*"]
+
+local dev:
+  - any:
+      [
+        "**/turbo.json",
+        "**/tsconfig.json",
+        "**/knip.json",
+        "**/.prettierrc",
+        "**/.oxlintrc.json",
+        "**/.eslintrc.cjs",
+      ]
